@@ -1,5 +1,5 @@
 /* Replace this placeholder with the WhatsApp business number, country code included, no + or spaces. */
-const BUSINESS_NUMBER = "27123456789";
+const BUSINESS_NUMBER = "27769488140";
 const CART_KEY = "scent-world-cart";
 const products = {
   perfumes: [
