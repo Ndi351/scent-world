@@ -24,13 +24,74 @@ const saveCart = cart => { localStorage.setItem(CART_KEY, JSON.stringify(cart));
 const allProducts = Object.values(products).flat();
 const currentProducts = products[document.body.dataset.category];
 
+function ensureProductPreview() {
+  let backdrop = document.querySelector(".product-preview-backdrop");
+  if (backdrop) return backdrop;
+
+  backdrop = document.createElement("div");
+  backdrop.className = "product-preview-backdrop";
+  backdrop.hidden = true;
+  backdrop.innerHTML = `
+    <div class="product-preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title">
+      <button class="preview-close" type="button" aria-label="Close product preview">×</button>
+      <div class="preview-media"><img src="" alt=""></div>
+      <div class="preview-body">
+        <p class="eyebrow">Product preview</p>
+        <h2 id="preview-title"></h2>
+        <p class="preview-description"></p>
+        <div class="preview-meta">
+          <span class="preview-category"></span>
+          <strong class="preview-price"></strong>
+        </div>
+        <button class="preview-add-button" type="button">Add to cart <span>→</span></button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(backdrop);
+  return backdrop;
+}
+
 function renderProducts() {
   document.querySelector(".product-total").textContent = `${currentProducts.length} pieces`;
   document.querySelector(".product-grid").innerHTML = currentProducts.map(product => `
-    <article class="product-card">
+    <article class="product-card" data-id="${product.id}">
       <div class="product-image-wrap"><img src="${product.image}" alt="${product.name}" loading="lazy"><span>${product.category}</span></div>
       <div class="product-info"><h3>${product.name}</h3><p>${product.description}</p><div class="product-buy"><strong>${money(product.price)}</strong><button class="add-button" type="button" data-id="${product.id}">Add to cart <span>+</span></button></div></div>
     </article>`).join("");
+}
+
+function openProductPreview(productId) {
+  const product = allProducts.find(item => item.id === productId);
+  if (!product) return;
+
+  const backdrop = ensureProductPreview();
+  const modal = backdrop.querySelector(".product-preview-modal");
+  const image = backdrop.querySelector(".preview-media img");
+  const title = backdrop.querySelector("#preview-title");
+  const description = backdrop.querySelector(".preview-description");
+  const category = backdrop.querySelector(".preview-category");
+  const price = backdrop.querySelector(".preview-price");
+  const addButton = backdrop.querySelector(".preview-add-button");
+
+  image.src = product.image;
+  image.alt = product.name;
+  title.textContent = product.name;
+  description.textContent = product.description;
+  category.textContent = product.category;
+  price.textContent = money(product.price);
+  addButton.dataset.id = product.id;
+
+  backdrop.hidden = false;
+  document.body.classList.add("no-scroll");
+  modal.scrollTop = 0;
+}
+
+function closeProductPreview() {
+  const backdrop = document.querySelector(".product-preview-backdrop");
+  if (!backdrop) return;
+  backdrop.hidden = true;
+  document.body.classList.remove("no-scroll");
 }
 
 function renderCart() {
@@ -59,6 +120,11 @@ function showToast(message) {
 }
 
 document.addEventListener("click", event => {
+  const previewCard = event.target.closest(".product-card");
+  if (previewCard && !event.target.closest(".add-button") && !event.target.closest("[data-action]")) {
+    openProductPreview(previewCard.dataset.id);
+  }
+
   const add = event.target.closest(".add-button");
   if (add) {
     const product = allProducts.find(item => item.id === add.dataset.id);
@@ -66,6 +132,17 @@ document.addEventListener("click", event => {
     existing ? existing.quantity++ : cart.push({ ...product, quantity: 1 });
     saveCart(cart); showToast(`${product.name} added to your cart`);
   }
+
+  const previewAdd = event.target.closest(".preview-add-button");
+  if (previewAdd) {
+    const product = allProducts.find(item => item.id === previewAdd.dataset.id);
+    const cart = getCart(); const existing = cart.find(item => item.id === product.id);
+    existing ? existing.quantity++ : cart.push({ ...product, quantity: 1 });
+    saveCart(cart);
+    closeProductPreview();
+    showToast(`${product.name} added to your cart`);
+  }
+
   const action = event.target.closest("[data-action]");
   if (action) {
     const cart = getCart(); const item = cart.find(entry => entry.id === action.dataset.id);
@@ -78,9 +155,11 @@ document.addEventListener("click", event => {
   if (event.target.closest(".close-cart, .cart-overlay")) setCartOpen(false);
   if (event.target.closest(".checkout-button")) {
     if (!getCart().length) return;
+    setCartOpen(false);
     document.querySelector(".modal-backdrop").hidden = false;
     document.querySelector('input[name="name"]').focus();
   }
+  if (event.target.closest(".preview-close") || (event.target.classList.contains("product-preview-backdrop"))) closeProductPreview();
   if (event.target.closest(".close-checkout") || event.target.classList.contains("modal-backdrop")) document.querySelector(".modal-backdrop").hidden = true;
 });
 
