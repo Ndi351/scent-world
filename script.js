@@ -1,7 +1,9 @@
 /* Replace this placeholder with the WhatsApp business number, country code included, no + or spaces. */
 const BUSINESS_NUMBER = "27769488140";
 const CART_KEY = "scent-world-cart";
-const products = {
+const PRODUCTS_KEY = "scent-world-products";
+const supabaseClient = window.supabase?.createClient(window.SUPABASE_URL, window.SUPABASE_PUBLISHABLE_KEY);
+const defaultProducts = {
   perfumes: [
     // Swap these placeholder image URLs and product details for your real catalogue.
     { id: "amber-noir", name: "Amber Noir", description: "Warm amber, smoked vanilla and sandalwood.", price: 899, category: "Perfume", image: "https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=700&q=85" },
@@ -21,8 +23,23 @@ const products = {
 const money = value => `R${value.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const getCart = () => JSON.parse(localStorage.getItem(CART_KEY) || "[]");
 const saveCart = cart => { localStorage.setItem(CART_KEY, JSON.stringify(cart)); renderCart(); };
-const allProducts = Object.values(products).flat();
-const currentProducts = products[document.body.dataset.category];
+const getProducts = () => {
+  const saved = localStorage.getItem(PRODUCTS_KEY);
+  return saved ? JSON.parse(saved) : defaultProducts;
+};
+let products = getProducts();
+let allProducts = Object.values(products).flat();
+let currentProducts = (products[document.body.dataset.category] || []).filter(product => product.visible !== false);
+
+async function loadCloudProducts() {
+  if (!supabaseClient) return;
+  const { data, error } = await supabaseClient.from("products").select("*").eq("visible", true).order("created_at");
+  if (error || !data?.length) return;
+  products = { perfumes: data.filter(item => item.product_type === "perfumes"), hubbly: data.filter(item => item.product_type === "hubbly") };
+  allProducts = Object.values(products).flat();
+  currentProducts = products[document.body.dataset.category] || [];
+  renderProducts();
+}
 
 function ensureProductPreview() {
   let backdrop = document.querySelector(".product-preview-backdrop");
@@ -178,4 +195,4 @@ document.querySelector(".checkout-modal").addEventListener("submit", event => {
   showToast("Your order is ready — check WhatsApp to confirm it.");
 });
 
-renderProducts(); renderCart();
+renderProducts(); renderCart(); loadCloudProducts();

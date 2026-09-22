@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Scent World product management dashboard.">
+  <title>Scent World | Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="admin-page">
+  <div class="admin-auth-backdrop" id="admin-auth-backdrop"><form class="admin-auth-card" id="admin-auth-form">
+    <div class="brand"><span class="brand-mark">SW</span><span>Scent <em>World</em></span></div>
+    <p class="eyebrow" id="auth-eyebrow">Admin access</p><h1 id="auth-title">Sign in</h1><p class="auth-intro" id="auth-intro">Sign in with your Supabase admin account.</p>
+    <label>Email<input id="admin-email" type="email" autocomplete="email" required placeholder="you@example.com"></label>
+    <label>Password<input id="admin-password" type="password" autocomplete="current-password" required placeholder="Your password"></label>
+    <p class="admin-form-error" id="auth-error" role="alert"></p><button class="admin-primary" type="submit" id="auth-submit">Sign in <span>→</span></button>
+    <small class="auth-note">Access is managed by Supabase Auth. Only approved Supabase users can manage products.</small>
+  </form></div>
+  <header class="site-header"><div class="header-inner">
+    <a class="brand" href="index.html" aria-label="Scent World home"><span class="brand-mark">SW</span><span>Scent <em>World</em></span></a>
+    <nav class="main-nav" aria-label="Admin navigation"><a class="active" href="admin.html">Products</a><a href="index.html">View shop</a><button class="admin-logout" id="admin-logout" type="button">Log out</button></nav>
+  </div></header>
+  <main class="admin-shell">
+    <div class="admin-heading"><div><p class="eyebrow">Store management</p><h1>Products</h1><p class="admin-intro">Add, edit, or hide products from your catalogue.</p></div><button class="admin-primary" id="new-product" type="button">Add product <span>+</span></button></div>
+    <div class="admin-stats" aria-label="Product totals"><div><strong id="total-products">0</strong><span>Total products</span></div><div><strong id="live-products">0</strong><span>Visible in shop</span></div><div><strong id="hidden-products">0</strong><span>Hidden</span></div></div>
+    <section class="admin-content">
+      <div class="admin-toolbar"><label class="search-field"><span>Search products</span><input id="product-search" type="search" placeholder="Search by name or category"></label><label class="filter-field"><span>Show</span><select id="product-filter"><option value="all">All products</option><option value="visible">Visible only</option><option value="hidden">Hidden only</option></select></label></div>
+      <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="product-list"></tbody></table><div id="empty-products" class="admin-empty" hidden>No products match your search.</div></div>
+    </section>
+  </main>
+  <div class="admin-modal-backdrop" id="product-modal" hidden><form class="admin-modal" id="product-form">
+    <button class="admin-modal-close" id="close-product-modal" type="button" aria-label="Close product form">×</button><p class="eyebrow" id="form-eyebrow">New product</p><h2 id="form-title">Add a product</h2>
+    <input id="product-id" type="hidden">
+    <div class="form-grid"><label>Product name<input id="product-name" type="text" required placeholder="e.g. Rose Oud"></label><label>Category<select id="product-category"><option value="perfumes">Perfume</option><option value="hubbly">Hubbly</option></select></label><label>Price (R)<input id="product-price" type="number" min="0" step="0.01" required placeholder="899"></label><label>Product label<input id="product-label" type="text" required placeholder="Perfume"></label></div>
+    <label>Description<textarea id="product-description" rows="3" required placeholder="A short description customers will see."></textarea></label>
+    <label>Image URL or path<input id="product-image" type="text" required placeholder="assets/my-product.jpg"></label>
+    <label class="admin-checkbox"><input id="product-visible" type="checkbox" checked><span>Show this product in the shop</span></label>
+    <p class="admin-form-error" id="form-error" role="alert"></p><div class="admin-modal-actions"><button class="admin-secondary" id="cancel-product" type="button">Cancel</button><button class="admin-primary" type="submit">Save product</button></div>
+  </form></div>
+  <div class="toast" id="admin-toast" role="status" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
