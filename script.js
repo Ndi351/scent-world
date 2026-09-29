@@ -69,13 +69,65 @@ function ensureProductPreview() {
   return backdrop;
 }
 
+function ensureProductFilters() {
+  const grid = document.querySelector(".product-grid");
+  if (!grid || document.querySelector(".catalog-tools")) return;
+
+  grid.insertAdjacentHTML("beforebegin", `
+    <div class="catalog-tools" role="search">
+      <label class="catalog-search"><span>Search</span><input type="search" placeholder="Search names and notes" aria-label="Search products"></label>
+      <label><span>Category</span><select class="catalog-category" aria-label="Filter by category"><option value="">All categories</option></select></label>
+      <label><span>Sort by</span><select class="catalog-sort" aria-label="Sort products"><option value="featured">Featured</option><option value="price-low-high">Price: low to high</option><option value="price-high-low">Price: high to low</option></select></label>
+      <button class="catalog-clear" type="button">Clear</button>
+    </div>
+  `);
+
+  const search = document.querySelector(".catalog-search input");
+  const category = document.querySelector(".catalog-category");
+  const sort = document.querySelector(".catalog-sort");
+  search.addEventListener("input", renderProducts);
+  category.addEventListener("change", renderProducts);
+  sort.addEventListener("change", renderProducts);
+  document.querySelector(".catalog-clear").addEventListener("click", () => {
+    search.value = "";
+    category.value = "";
+    sort.value = "featured";
+    renderProducts();
+    search.focus();
+  });
+}
+
 function renderProducts() {
-  document.querySelector(".product-total").textContent = `${currentProducts.length} pieces`;
-  document.querySelector(".product-grid").innerHTML = currentProducts.map(product => `
+  const categoryFilter = document.querySelector(".catalog-category");
+  const selectedCategory = categoryFilter.value;
+  const categories = [...new Set(currentProducts.map(product => product.category).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  categoryFilter.replaceChildren(new Option("All categories", ""), ...categories.map(category => new Option(category, category)));
+  if (categories.includes(selectedCategory)) categoryFilter.value = selectedCategory;
+
+  const searchTerm = document.querySelector(".catalog-search input").value.trim().toLocaleLowerCase();
+  const sortOrder = document.querySelector(".catalog-sort").value;
+  const visibleProducts = currentProducts.filter(product => {
+    const matchesSearch = `${product.name} ${product.description} ${product.category}`.toLocaleLowerCase().includes(searchTerm);
+    return matchesSearch && (!categoryFilter.value || product.category === categoryFilter.value);
+  });
+
+  if (sortOrder === "price-low-high") visibleProducts.sort((a, b) => Number(a.price) - Number(b.price));
+  if (sortOrder === "price-high-low") visibleProducts.sort((a, b) => Number(b.price) - Number(a.price));
+
+  document.querySelector(".product-total").textContent = `${visibleProducts.length} of ${currentProducts.length} pieces`;
+  document.querySelector(".product-grid").innerHTML = visibleProducts.length ? visibleProducts.map(product => `
     <article class="product-card" data-id="${product.id}">
       <div class="product-image-wrap"><img src="${product.image}" alt="${product.name}" loading="lazy"><span>${product.category}</span></div>
       <div class="product-info"><h3>${product.name}</h3><p>${product.description}</p><div class="product-buy"><strong>${money(product.price)}</strong><button class="add-button" type="button" data-id="${product.id}">Add to cart <span>+</span></button></div></div>
-    </article>`).join("");
+    </article>`).join("") : `<p class="catalog-empty">No products match those filters.</p>`;
+
+  requestAnimationFrame(() => {
+    const cards = document.querySelectorAll(".product-card");
+    cards.forEach((card, index) => {
+      card.style.transitionDelay = `${index * 70}ms`;
+      card.classList.add("is-visible");
+    });
+  });
 }
 
 function openProductPreview(productId) {
@@ -195,4 +247,4 @@ document.querySelector(".checkout-modal").addEventListener("submit", event => {
   showToast("Your order is ready — check WhatsApp to confirm it.");
 });
 
-renderProducts(); renderCart(); loadCloudProducts();
+ensureProductFilters(); renderProducts(); renderCart(); loadCloudProducts();
