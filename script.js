@@ -435,7 +435,7 @@ function finishOrder(form) {
   form.reset();
 }
 
-document.querySelector(".checkout-modal").addEventListener("submit", async event => {
+document.querySelector(".checkout-modal").addEventListener("submit", event => {
   event.preventDefault();
   const form = event.currentTarget; const error = form.querySelector(".form-error");
   error.textContent = "";
@@ -467,26 +467,11 @@ document.querySelector(".checkout-modal").addEventListener("submit", async event
     : "";
   const message = `Hello Scent World, I'd like to place an order:\n\n${lines}\n\nItems subtotal: ${money(subtotal)}\nCourier charge: ${money(COURIER_FEE)}\nTotal: ${money(total)}\n\nCustomer: ${data.get("name")}\nPhone: ${data.get("phone")}\nDelivery address: ${data.get("address")}\n${locationLine ? `${locationLine}\n` : ""}Order notes: ${data.get("notes") || "None"}\n\nEstimated delivery: 1-3 days depending on your location.\n\nOrder PDF: ${pdf.file.name} (${pdf.orderId}). Please attach the PDF to this WhatsApp order.`;
   const whatsappUrl = `https://wa.me/${BUSINESS_NUMBER}?text=${encodeURIComponent(message)}`;
-  const shareMessage = `Please send order ${pdf.orderId} to Scent World on WhatsApp at +${BUSINESS_NUMBER}. Total: ${money(total)}.`;
-  if (navigator.share && navigator.canShare?.({ files: [pdf.file] })) {
-    try {
-      await navigator.share({ files: [pdf.file], title: `Scent World order ${pdf.orderId}`, text: shareMessage });
-      finishOrder(form);
-      showToast("Order PDF shared. Select Scent World in your share options to send it.");
-      return;
-    } catch (shareError) {
-      if (shareError.name === "AbortError") {
-        error.textContent = "Sharing was cancelled. Your cart is unchanged; submit again when ready.";
-        return;
-      }
-    }
-  }
-
   downloadOrderPdf(pdf.file);
   finishOrder(form);
   const popup = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   if (!popup) window.location.href = whatsappUrl;
-  showToast("Order PDF downloaded. Attach it to the WhatsApp message before sending.");
+  showToast("Order PDF downloaded. Attach it to the open Scent World WhatsApp chat to send.");
 });
 
 ensureProductFilters(); renderProducts(); renderCart(); loadCloudProducts();
