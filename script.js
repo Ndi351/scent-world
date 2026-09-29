@@ -267,165 +267,6 @@ document.querySelector(".use-location").addEventListener("click", event => {
   }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
 });
 
-function createOrderPdf(order) {
-  const JsPdf = window.jspdf?.jsPDF;
-  if (!JsPdf) throw new Error("PDF library is unavailable");
-
-  const documentPdf = new JsPdf({ unit: "mm", format: "a4" });
-  const pageWidth = documentPdf.internal.pageSize.getWidth();
-  const pageHeight = documentPdf.internal.pageSize.getHeight();
-  const margin = 18;
-  const contentWidth = pageWidth - margin * 2;
-  const safeText = value => String(value ?? "").normalize("NFKD").replace(/[^\x20-\x7E]/g, "");
-  const orderId = `SW-${Date.now().toString(36).toUpperCase()}`;
-  let y = 55;
-
-  documentPdf.setFillColor(36, 32, 30);
-  documentPdf.rect(0, 0, pageWidth, 40, "F");
-  documentPdf.setTextColor(255, 253, 250);
-  documentPdf.setFont("helvetica", "bold");
-  documentPdf.setFontSize(17);
-  documentPdf.text("SCENT WORLD", margin, 17);
-  documentPdf.setFont("helvetica", "normal");
-  documentPdf.setFontSize(9);
-  documentPdf.text("ORDER SUMMARY", margin, 26);
-  documentPdf.text(`Order ${orderId}`, pageWidth - margin, 17, { align: "right" });
-  documentPdf.text(new Date().toLocaleString("en-ZA"), pageWidth - margin, 26, { align: "right" });
-
-  const sectionHeading = title => {
-    documentPdf.setTextColor(165, 107, 69);
-    documentPdf.setFont("helvetica", "bold");
-    documentPdf.setFontSize(9);
-    documentPdf.text(title.toUpperCase(), margin, y);
-    y += 6;
-  };
-  const detail = (label, value) => {
-    const valueLines = documentPdf.splitTextToSize(safeText(value) || "-", contentWidth - 34);
-    const height = Math.max(6, valueLines.length * 4.5);
-    if (y + height > pageHeight - 20) {
-      documentPdf.addPage();
-      y = 20;
-    }
-    documentPdf.setTextColor(118, 108, 102);
-    documentPdf.setFont("helvetica", "normal");
-    documentPdf.setFontSize(9);
-    documentPdf.text(label, margin, y);
-    documentPdf.setTextColor(36, 32, 30);
-    documentPdf.text(valueLines, margin + 34, y);
-    y += height + 2;
-  };
-
-  sectionHeading("Customer and delivery");
-  detail("Customer", order.customer);
-  detail("Phone", order.phone);
-  detail("Address", order.address);
-  if (order.location) {
-    detail("GPS coordinates", `${order.location.latitude.toFixed(6)}, ${order.location.longitude.toFixed(6)}`);
-    documentPdf.setTextColor(36, 101, 130);
-    documentPdf.setFontSize(9);
-    documentPdf.textWithLink("Open map pin", margin + 34, y - 2, {
-      url: `https://maps.google.com/?q=${order.location.latitude},${order.location.longitude}`
-    });
-    y += 5;
-  }
-  detail("Delivery estimate", "1-3 days, depending on your location");
-
-  sectionHeading("Order items");
-  const columns = { item: margin + 3, quantity: margin + 104, unit: margin + 126, amount: pageWidth - margin - 3 };
-  const drawTableHeader = () => {
-    documentPdf.setFillColor(245, 242, 237);
-    documentPdf.rect(margin, y - 4, contentWidth, 10, "F");
-    documentPdf.setTextColor(118, 108, 102);
-    documentPdf.setFont("helvetica", "bold");
-    documentPdf.setFontSize(8);
-    documentPdf.text("ITEM", columns.item, y + 2);
-    documentPdf.text("QTY", columns.quantity, y + 2, { align: "center" });
-    documentPdf.text("UNIT PRICE", columns.unit, y + 2, { align: "right" });
-    documentPdf.text("AMOUNT", columns.amount, y + 2, { align: "right" });
-    y += 12;
-  };
-  drawTableHeader();
-
-  order.items.forEach(item => {
-    const itemText = safeText(`${item.name} - ${item.category || "Product"}`);
-    const itemLines = documentPdf.splitTextToSize(itemText, 82);
-    const rowHeight = Math.max(9, itemLines.length * 4.5 + 2);
-    if (y + rowHeight > pageHeight - 30) {
-      documentPdf.addPage();
-      y = 20;
-      sectionHeading("Order items (continued)");
-      drawTableHeader();
-    }
-    documentPdf.setTextColor(36, 32, 30);
-    documentPdf.setFont("helvetica", "normal");
-    documentPdf.setFontSize(9);
-    documentPdf.text(itemLines, columns.item, y);
-    documentPdf.text(String(item.quantity), columns.quantity, y, { align: "center" });
-    documentPdf.text(safeText(money(item.price)), columns.unit, y, { align: "right" });
-    documentPdf.text(safeText(money(item.price * item.quantity)), columns.amount, y, { align: "right" });
-    y += rowHeight;
-    documentPdf.setDrawColor(232, 224, 216);
-    documentPdf.line(margin, y - 2, pageWidth - margin, y - 2);
-  });
-
-  y += 5;
-  const totalRow = (label, amount, emphasized = false) => {
-    if (y + 8 > pageHeight - 18) {
-      documentPdf.addPage();
-      y = 20;
-    }
-    documentPdf.setTextColor(36, 32, 30);
-    documentPdf.setFont("helvetica", emphasized ? "bold" : "normal");
-    documentPdf.setFontSize(emphasized ? 11 : 9);
-    documentPdf.text(label, pageWidth - margin - 57, y);
-    documentPdf.text(safeText(money(amount)), pageWidth - margin, y, { align: "right" });
-    y += emphasized ? 9 : 7;
-  };
-  totalRow("Items subtotal", order.subtotal);
-  totalRow("Courier charge", COURIER_FEE);
-  documentPdf.setDrawColor(165, 107, 69);
-  documentPdf.line(pageWidth - margin - 62, y - 2, pageWidth - margin, y - 2);
-  totalRow("TOTAL", order.total, true);
-
-  if (order.notes) {
-    y += 2;
-    sectionHeading("Order notes");
-    const noteLines = documentPdf.splitTextToSize(safeText(order.notes), contentWidth);
-    if (y + noteLines.length * 4.5 > pageHeight - 18) {
-      documentPdf.addPage();
-      y = 20;
-    }
-    documentPdf.setTextColor(36, 32, 30);
-    documentPdf.setFont("helvetica", "normal");
-    documentPdf.setFontSize(9);
-    documentPdf.text(noteLines, margin, y);
-  }
-
-  const pageCount = documentPdf.internal.getNumberOfPages();
-  for (let page = 1; page <= pageCount; page++) {
-    documentPdf.setPage(page);
-    documentPdf.setTextColor(150, 142, 135);
-    documentPdf.setFont("helvetica", "normal");
-    documentPdf.setFontSize(8);
-    documentPdf.text(`Scent World | ${orderId}`, margin, pageHeight - 9);
-    documentPdf.text(`${page} / ${pageCount}`, pageWidth - margin, pageHeight - 9, { align: "right" });
-  }
-
-  const fileName = `scent-world-${orderId.toLowerCase()}.pdf`;
-  return { file: new File([documentPdf.output("blob")], fileName, { type: "application/pdf" }), orderId };
-}
-
-function downloadOrderPdf(file) {
-  const objectUrl = URL.createObjectURL(file);
-  const link = document.createElement("a");
-  link.href = objectUrl;
-  link.download = file.name;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-}
-
 function finishOrder(form) {
   localStorage.removeItem(CART_KEY);
   checkoutLocation = null;
@@ -444,34 +285,15 @@ document.querySelector(".checkout-modal").addEventListener("submit", event => {
   const lines = cart.map(item => `• ${item.name} x${item.quantity} — ${money(item.price * item.quantity)}`).join("\n");
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const total = subtotal + COURIER_FEE;
-  const order = {
-    customer: data.get("name"),
-    phone: data.get("phone"),
-    address: data.get("address"),
-    notes: data.get("notes"),
-    items: cart,
-    subtotal,
-    total,
-    location: checkoutLocation
-  };
-  let pdf;
-  try {
-    pdf = createOrderPdf(order);
-  } catch (pdfError) {
-    error.textContent = "The order PDF could not be created. Please check your connection and try again.";
-    return;
-  }
-
   const locationLine = checkoutLocation
     ? `Current GPS location: https://maps.google.com/?q=${checkoutLocation.latitude.toFixed(6)},${checkoutLocation.longitude.toFixed(6)}`
     : "";
-  const message = `Hello Scent World, I'd like to place an order:\n\n${lines}\n\nItems subtotal: ${money(subtotal)}\nCourier charge: ${money(COURIER_FEE)}\nTotal: ${money(total)}\n\nCustomer: ${data.get("name")}\nPhone: ${data.get("phone")}\nDelivery address: ${data.get("address")}\n${locationLine ? `${locationLine}\n` : ""}Order notes: ${data.get("notes") || "None"}\n\nEstimated delivery: 1-3 days depending on your location.\n\nOrder PDF: ${pdf.file.name} (${pdf.orderId}). Please attach the PDF to this WhatsApp order.`;
+  const message = `Hello Scent World, I'd like to place an order:\n\n${lines}\n\nItems subtotal: ${money(subtotal)}\nCourier charge: ${money(COURIER_FEE)}\nTotal: ${money(total)}\n\nCustomer: ${data.get("name")}\nPhone: ${data.get("phone")}\nDelivery address: ${data.get("address")}\n${locationLine ? `${locationLine}\n` : ""}Order notes: ${data.get("notes") || "None"}\n\nEstimated delivery: 1-3 days depending on your location.`;
   const whatsappUrl = `https://wa.me/${BUSINESS_NUMBER}?text=${encodeURIComponent(message)}`;
-  downloadOrderPdf(pdf.file);
   finishOrder(form);
   const popup = window.open(whatsappUrl, "_blank", "noopener,noreferrer");
   if (!popup) window.location.href = whatsappUrl;
-  showToast("Order PDF downloaded. Attach it to the open Scent World WhatsApp chat to send.");
+  showToast("Your order is ready in the Scent World WhatsApp chat.");
 });
 
 ensureProductFilters(); renderProducts(); renderCart(); loadCloudProducts();
